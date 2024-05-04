@@ -2,6 +2,8 @@ package com.jxh.yujian.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import com.google.gson.Gson;
+import com.google.gson.reflect.TypeToken;
 import com.jxh.yujian.common.ErrorCode;
 import com.jxh.yujian.exception.BusinessException;
 import com.jxh.yujian.model.domain.User;
@@ -16,6 +18,7 @@ import org.springframework.util.CollectionUtils;
 import org.springframework.util.DigestUtils;
 
 import java.util.List;
+import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -23,14 +26,14 @@ import java.util.stream.Collectors;
 import static com.jxh.yujian.constant.UserConstant.USER_LOGIN_STATE;
 
 /**
-* @author 20891
-* @description 针对表【user(用户表)】的数据库操作Service实现
-* @createDate 2024-04-01 22:20:47
-*/
+ * @author 20891
+ * @description 针对表【user(用户表)】的数据库操作Service实现
+ * @createDate 2024-04-01 22:20:47
+ */
 @Service
 @Slf4j
 public class UserServiceImpl extends ServiceImpl<UserMapper, User>
-    implements UserService {
+        implements UserService {
 
     /**
      * 盐值
@@ -44,8 +47,8 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>
     /**
      * 用户注册服务实现
      *
-     * @param userAccount 账户
-     * @param userPassword 密码
+     * @param userAccount   账户
+     * @param userPassword  密码
      * @param checkPassword 校验密码
      * @return 用户id
      */
@@ -53,33 +56,33 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>
     public long userRegister(String userAccount, String userPassword, String checkPassword) {
 
         //账户、密码、校验码不为空
-        if (StringUtils.isAnyBlank(userAccount,userPassword,checkPassword)) {
-            throw new BusinessException(ErrorCode.PARAMS_ERROR,"参数为空");
+        if (StringUtils.isAnyBlank(userAccount, userPassword, checkPassword)) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "参数为空");
         }
         //账户长度不小于4
         if (userAccount.length() < 4) {
-            throw new BusinessException(ErrorCode.PARAMS_ERROR,"账户长度不小于4");
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "账户长度不小于4");
         }
         //账户中不得包含特殊字符
-        String validPattern="[ _`~!@#$%^&*()+=|{}':;',\\\\[\\\\].<>/?~！@#￥%……&*（）——+|{}【】‘；：”“’。，、？]|\\n|\\r|\\t";
+        String validPattern = "[ _`~!@#$%^&*()+=|{}':;',\\\\[\\\\].<>/?~！@#￥%……&*（）——+|{}【】‘；：”“’。，、？]|\\n|\\r|\\t";
         Matcher matcher = Pattern.compile(validPattern).matcher(userAccount);
         if (matcher.find()) {
-            throw new BusinessException(ErrorCode.PARAMS_ERROR,"账户中不得包含特殊字符");
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "账户中不得包含特殊字符");
         }
         //密码和校验码不小于8
         if (userPassword.length() < 8 || checkPassword.length() < 8) {
-            throw new BusinessException(ErrorCode.PARAMS_ERROR,"密码和校验码不小于8");
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "密码和校验码不小于8");
         }
         //密码和校验码要相同
         if (!userPassword.equals(checkPassword)) {
-            throw new BusinessException(ErrorCode.PARAMS_ERROR,"密码和校验码要相同");
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "密码和校验码要相同");
         }
         //账户不可重复
         QueryWrapper<User> queryWrapper = new QueryWrapper();
         queryWrapper.eq("userAccount", userAccount);
         Long selectCount = userMapper.selectCount(queryWrapper);
         if (selectCount > 0) {
-            throw new BusinessException(ErrorCode.PARAMS_ERROR,"账户不可重复");
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "账户不可重复");
         }
 
         //对密码加密
@@ -92,7 +95,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>
         user.setUserPassword(safetyPassword);
         int saveResult = userMapper.insert(user);
         if (saveResult < 0) {
-            throw new BusinessException(ErrorCode.PARAMS_ERROR,"存入数据库失败");
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "存入数据库失败");
         }
 
         return user.getId();
@@ -110,36 +113,36 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>
     public User userLogin(String userAccount, String userPassword, HttpServletRequest request) {
 
         //账户、密码、校验码不为空
-        if (StringUtils.isAnyBlank(userAccount,userPassword)) {
-            throw new BusinessException(ErrorCode.PARAMS_ERROR,"参数为空");
+        if (StringUtils.isAnyBlank(userAccount, userPassword)) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "参数为空");
         }
         //账户长度不小于4
         if (userAccount.length() < 4) {
-            throw new BusinessException(ErrorCode.PARAMS_ERROR,"账户长度不小于4");
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "账户长度不小于4");
         }
         //账户中不得包含特殊字符
-        String validPattern="[ _`~!@#$%^&*()+=|{}':;',\\\\[\\\\].<>/?~！@#￥%……&*（）——+|{}【】‘；：”“’。，、？]|\\n|\\r|\\t";
+        String validPattern = "[ _`~!@#$%^&*()+=|{}':;',\\\\[\\\\].<>/?~！@#￥%……&*（）——+|{}【】‘；：”“’。，、？]|\\n|\\r|\\t";
         Matcher matcher = Pattern.compile(validPattern).matcher(userAccount);
         if (matcher.find()) {
-            throw new BusinessException(ErrorCode.PARAMS_ERROR,"账户中不得包含特殊字符");
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "账户中不得包含特殊字符");
         }
         //密码和校验码不小于8
         if (userPassword.length() < 8) {
-            throw new BusinessException(ErrorCode.PARAMS_ERROR,"密码和校验码不小于8");
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "密码和校验码不小于8");
         }
         String encodePassword = DigestUtils.md5DigestAsHex((SALT + userPassword).getBytes());
         QueryWrapper<User> userQueryWrapper = new QueryWrapper<>();
-        userQueryWrapper.eq("userAccount",userAccount);
-        userQueryWrapper.eq("userPassword",encodePassword);
+        userQueryWrapper.eq("userAccount", userAccount);
+        userQueryWrapper.eq("userPassword", encodePassword);
         User user = userMapper.selectOne(userQueryWrapper);
         if (user == null) {
             log.info("user login failed,userAccount cannot match userPassword");
-            throw new BusinessException(ErrorCode.PARAMS_ERROR,"用户不存在");
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "用户不存在");
         }
         //脱敏用户信息
         User safetyUser = getSafetyUser(user);
         //记录用户登录态
-        request.getSession().setAttribute(USER_LOGIN_STATE,safetyUser);
+        request.getSession().setAttribute(USER_LOGIN_STATE, safetyUser);
 
         //返回用户脱敏信息
         return safetyUser;
@@ -152,10 +155,10 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>
      * @return 脱敏用户信息
      */
     @Override
-    public User getSafetyUser(User user){
+    public User getSafetyUser(User user) {
 
         if (user == null) {
-            throw new BusinessException(ErrorCode.PARAMS_ERROR,"参数为空");
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "参数为空");
         }
 
         User safetyUser = new User();
@@ -193,14 +196,44 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>
      */
     @Override
     public List<User> searchUsersByTags(List<String> listTagName) {
-
         if (CollectionUtils.isEmpty(listTagName)) {
-            throw new BusinessException(ErrorCode.PARAMS_ERROR,"标签列表参数为空");
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "标签列表参数为空");
         }
+        /**
+         * 1.第一种方式 内存计算
+         *
+         * 可以通过并发进一步优化
+         * 可以与SQL查询相结合，谁先返回就用谁
+         *
+         * QueryWrapper<User> queryWrapper = new QueryWrapper<>();
+         * //1.先查询所有用户
+         * List<User> userList = userMapper.selectList(queryWrapper);
+         * Gson gson = new Gson();
+         * //2.判断内存中是否包含要求的标签
+         * return userList.stream().filter(user -> {
+         *      String tagStr = user.getTags();
+         *      if (StringUtils.isBlank(tagStr)) {
+         *          return false;
+         *      }
+         *      //反序列化为集合
+         *      Set<String> tempTagNameSet = gson.fromJson(tagStr,new TypeToken<Set<String>>(){}.getType());
+         *      //在传入的listTagName中查找是否包含有数据库中包含的标签
+         *      for (String tagName : listTagName) {
+         *          if (!tempTagNameSet.contains(tagName)) {
+         *              return false;
+         *          }
+         *      }
+         *      return true;
+         * }).map(this::getSafetyUser).collect(Collectors.toList());
+         */
+
+        /**
+         * 2.第二种方式 SQL查询
+         */
         //拼接查询
         QueryWrapper<User> queryWrapper = new QueryWrapper<>();
         for (String name : listTagName) {
-            queryWrapper.like("tags",name);
+            queryWrapper.like("tags", name);
         }
         List<User> users = userMapper.selectList(queryWrapper);
 
