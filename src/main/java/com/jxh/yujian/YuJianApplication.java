@@ -7,8 +7,8 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 /**
  * @author 20891
  */
-@SpringBootApplication
 @MapperScan("com.jxh.yujian.mapper")
+@SpringBootApplication
 public class YuJianApplication {
 
     public static void main(String[] args) {

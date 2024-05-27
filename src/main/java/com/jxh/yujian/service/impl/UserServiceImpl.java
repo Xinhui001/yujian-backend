@@ -2,13 +2,11 @@ package com.jxh.yujian.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
-import com.google.gson.Gson;
-import com.google.gson.reflect.TypeToken;
 import com.jxh.yujian.common.ErrorCode;
 import com.jxh.yujian.exception.BusinessException;
+import com.jxh.yujian.mapper.UserMapper;
 import com.jxh.yujian.model.domain.User;
 import com.jxh.yujian.service.UserService;
-import com.jxh.yujian.mapper.UserMapper;
 import jakarta.annotation.Resource;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
@@ -18,7 +16,6 @@ import org.springframework.util.CollectionUtils;
 import org.springframework.util.DigestUtils;
 
 import java.util.List;
-import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -217,6 +214,8 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>
          *      }
          *      //反序列化为集合
          *      Set<String> tempTagNameSet = gson.fromJson(tagStr,new TypeToken<Set<String>>(){}.getType());
+         *      //集合判空(空指针异常)
+         *      tempTagNameSet = Optional.ofNullable(tempTagNameSet).orElse(new HashSet<>());
          *      //在传入的listTagName中查找是否包含有数据库中包含的标签
          *      for (String tagName : listTagName) {
          *          if (!tempTagNameSet.contains(tagName)) {

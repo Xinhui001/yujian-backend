@@ -13,6 +13,7 @@ import com.jxh.yujian.service.UserService;
 import jakarta.annotation.Resource;
 import jakarta.servlet.http.HttpServletRequest;
 import org.apache.commons.lang3.StringUtils;
+import org.springframework.util.CollectionUtils;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -25,6 +26,7 @@ import java.util.stream.Collectors;
  */
 @RestController
 @RequestMapping("/user")
+@CrossOrigin(origins = {"http://localhost:5173/"})
 public class UserController {
 
     @Resource
@@ -116,6 +118,16 @@ public class UserController {
 
         return ResultUtils.success(result);
     }
+
+    @GetMapping("/search/tags")
+    public BaseResponse<List<User>> searchUsersByTags(@RequestBody(required = false) List<String> tagNameList) {
+        if (CollectionUtils.isEmpty(tagNameList)) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR);
+        }
+        List<User> userList = userService.searchUsersByTags(tagNameList);
+        return ResultUtils.success(userList);
+    }
+
 
     /**
      * 是否为管理员
