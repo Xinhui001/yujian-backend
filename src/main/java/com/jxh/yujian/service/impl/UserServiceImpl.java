@@ -2,6 +2,8 @@ package com.jxh.yujian.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import com.google.gson.Gson;
+import com.google.gson.reflect.TypeToken;
 import com.jxh.yujian.common.ErrorCode;
 import com.jxh.yujian.exception.BusinessException;
 import com.jxh.yujian.mapper.UserMapper;
@@ -15,11 +17,15 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.CollectionUtils;
 import org.springframework.util.DigestUtils;
 
+import java.util.HashSet;
 import java.util.List;
+import java.util.Optional;
+import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
+import static com.jxh.yujian.constant.UserConstant.ADMIN_ROLE;
 import static com.jxh.yujian.constant.UserConstant.USER_LOGIN_STATE;
 
 /**
@@ -169,6 +175,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>
         safetyUser.setUserRole(user.getUserRole());
         safetyUser.setPhone(user.getPhone());
         safetyUser.setTags(user.getTags());
+        safetyUser.setProfile(user.getProfile());
         safetyUser.setCreateTime(user.getCreateTime());
         return safetyUser;
     }
@@ -201,42 +208,114 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>
          *
          * 可以通过并发进一步优化
          * 可以与SQL查询相结合，谁先返回就用谁
-         *
-         * QueryWrapper<User> queryWrapper = new QueryWrapper<>();
-         * //1.先查询所有用户
-         * List<User> userList = userMapper.selectList(queryWrapper);
-         * Gson gson = new Gson();
-         * //2.判断内存中是否包含要求的标签
-         * return userList.stream().filter(user -> {
-         *      String tagStr = user.getTags();
-         *      if (StringUtils.isBlank(tagStr)) {
-         *          return false;
-         *      }
-         *      //反序列化为集合
-         *      Set<String> tempTagNameSet = gson.fromJson(tagStr,new TypeToken<Set<String>>(){}.getType());
-         *      //集合判空(空指针异常)
-         *      tempTagNameSet = Optional.ofNullable(tempTagNameSet).orElse(new HashSet<>());
-         *      //在传入的listTagName中查找是否包含有数据库中包含的标签
-         *      for (String tagName : listTagName) {
-         *          if (!tempTagNameSet.contains(tagName)) {
-         *              return false;
-         *          }
-         *      }
-         *      return true;
-         * }).map(this::getSafetyUser).collect(Collectors.toList());
          */
+        QueryWrapper<User> queryWrapper = new QueryWrapper<>();
+        //1.先查询所有用户
+        List<User> userList = userMapper.selectList(queryWrapper);
+        Gson gson = new Gson();
+        //2.判断内存中是否包含要求的标签
+        return userList.stream().filter(user -> {
+            String tagStr = user.getTags();
+            if (StringUtils.isBlank(tagStr)) {
+                return false;
+            }
+            //反序列化为集合
+            Set<String> tempTagNameSet = gson.fromJson(tagStr, new TypeToken<Set<String>>() {
+            }.getType());
+            //集合判空(空指针异常)
+            tempTagNameSet = Optional.ofNullable(tempTagNameSet).orElse(new HashSet<>());
+            //在传入的listTagName中查找是否包含有数据库中包含的标签
+            for (String tagName : listTagName) {
+                if (!tempTagNameSet.contains(tagName)) {
+                    return false;
+                }
+            }
+            return true;
+        }).map(this::getSafetyUser).collect(Collectors.toList());
+
 
         /**
          * 2.第二种方式 SQL查询
+         * //拼接查询
+         *         QueryWrapper<User> queryWrapper = new QueryWrapper<>();
+         *         for (String name : listTagName) {
+         *             queryWrapper.like("tags", name);
+         *         }
+         *         List<User> users = userMapper.selectList(queryWrapper);
+         *
+         *         return users.stream().map(this::getSafetyUser).collect(Collectors.toList());
          */
-        //拼接查询
-        QueryWrapper<User> queryWrapper = new QueryWrapper<>();
-        for (String name : listTagName) {
-            queryWrapper.like("tags", name);
-        }
-        List<User> users = userMapper.selectList(queryWrapper);
 
-        return users.stream().map(this::getSafetyUser).collect(Collectors.toList());
+    }
+
+    /**
+     * 是否为管理员
+     *
+     * @param request
+     * @return
+     */
+    @Override
+    public boolean isAdmin(HttpServletRequest request) {
+        //仅管理员可查询
+        User user = (User) request.getSession().getAttribute(USER_LOGIN_STATE);
+
+        return user != null && user.getUserRole() == ADMIN_ROLE;
+    }
+
+    /**
+     * 是否为管理员
+     *
+     * @param loginUser
+     * @return
+     */
+    @Override
+    public boolean isAdmin(User loginUser) {
+        return loginUser != null && loginUser.getUserRole() == ADMIN_ROLE;
+    }
+
+    /**
+     * 修改用户信息
+     *
+     * @param user      要修改的用户对象(前端传过来的)
+     * @param loginUser 当前登录的用户  可能是管理员也可能是用户本人
+     * @return
+     */
+    @Override
+    public int updateUser(User user, User loginUser) {
+        long userId = user.getId();
+        if (userId <= 0) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR);
+        }
+        //如果是管理员，允许更新任意用户
+        //如果不是管理员，只允许修改自己的信息
+        if (!isAdmin(loginUser) && userId != loginUser.getId()) {
+            throw new BusinessException(ErrorCode.NO_AUTH);
+        }
+        //根据要修改的用户id，查询数据库中是否存在该用户
+        User oldUser = userMapper.selectById(userId);
+        if (oldUser == null) {
+            throw new BusinessException(ErrorCode.NULL_ERROR,"数据库中不存在当前要修改的用户");
+        }
+        //执行修改
+        return userMapper.updateById(user);
+    }
+
+    /**
+     * 获取当前用户信息
+     *
+     * @param request
+     * @return
+     */
+    @Override
+    public User getLoginUser(HttpServletRequest request) {
+        if (request == null) {
+            return null;
+        }
+        Object userObj = request.getSession().getAttribute(USER_LOGIN_STATE);
+        if (userObj == null) {
+            throw new BusinessException(ErrorCode.NO_AUTH);
+        }
+        return (User) userObj;
     }
 
 }

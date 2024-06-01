@@ -10,6 +10,7 @@ import com.jxh.yujian.model.domain.User;
 import com.jxh.yujian.model.request.UserLoginRequest;
 import com.jxh.yujian.model.request.UserRegisterRequest;
 import com.jxh.yujian.service.UserService;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.annotation.Resource;
 import jakarta.servlet.http.HttpServletRequest;
 import org.apache.commons.lang3.StringUtils;
@@ -27,6 +28,7 @@ import java.util.stream.Collectors;
 @RestController
 @RequestMapping("/user")
 @CrossOrigin(origins = {"http://localhost:5173/"})
+@Tag(name = "user")
 public class UserController {
 
     @Resource
@@ -94,7 +96,7 @@ public class UserController {
 
     @GetMapping("/search")
     public BaseResponse<List<User>> searchUsers(String username, HttpServletRequest servletRequest) {
-        if (!isAdmin(servletRequest)) {
+        if (!userService.isAdmin(servletRequest)) {
             throw new BusinessException(ErrorCode.NO_AUTH);
         }
         QueryWrapper<User> userQueryWrapper = new QueryWrapper<>();
@@ -108,7 +110,7 @@ public class UserController {
 
     @PostMapping("/delete")
     public BaseResponse<Boolean> deleteUser(@RequestBody long id, HttpServletRequest servletRequest) {
-        if (!isAdmin(servletRequest)) {
+        if (!userService.isAdmin(servletRequest)) {
             throw new BusinessException(ErrorCode.NO_AUTH);
         }
         if (id <= 0) {
@@ -128,16 +130,16 @@ public class UserController {
         return ResultUtils.success(userList);
     }
 
-
-    /**
-     * 是否为管理员
-     *
-     * @param request
-     * @return
-     */
-    private boolean isAdmin(HttpServletRequest request) {
-        User user = (User) request.getSession().getAttribute(UserConstant.USER_LOGIN_STATE);
-        return user != null && user.getUserRole() == UserConstant.ADMIN_ROLE;
+    @PostMapping("/update")
+    public BaseResponse<Integer> updateUser(@RequestBody User user,HttpServletRequest request) {
+        //验证参数是否为空
+        if (user == null) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR);
+        }
+        //鉴权
+        User loginUser = userService.getLoginUser(request);
+        int result = userService.updateUser(user, loginUser);
+        return ResultUtils.success(result);
     }
 
 }
