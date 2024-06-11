@@ -286,6 +286,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>
         if (userId <= 0) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR);
         }
+        //TODO 如果用户没有传任何要更新的值 直接报错 不执行update语句
         //如果是管理员，允许更新任意用户
         //如果不是管理员，只允许修改自己的信息
         if (!isAdmin(loginUser) && userId != loginUser.getId()) {

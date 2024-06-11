@@ -1,5 +1,7 @@
 package com.jxh.yujian.common;
 
+import lombok.Data;
+
 import java.io.Serializable;
 
 /**
@@ -7,6 +9,7 @@ import java.io.Serializable;
  *
  * @author 20891
  */
+@Data
 public class BaseResponse<T> implements Serializable {
 
     private int code;
