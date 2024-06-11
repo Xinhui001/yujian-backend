@@ -1,6 +1,7 @@
 package com.jxh.yujian.controller;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.jxh.yujian.common.BaseResponse;
 import com.jxh.yujian.common.ErrorCode;
 import com.jxh.yujian.common.ResultUtils;
@@ -15,6 +16,7 @@ import jakarta.annotation.Resource;
 import jakarta.servlet.http.HttpServletRequest;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.util.CollectionUtils;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -124,12 +126,19 @@ public class UserController {
     }
 
     @GetMapping("/search/tags")
-    public BaseResponse<List<User>> searchUsersByTags(@RequestParam(required = false) List<String> tagNameList) {
+    public BaseResponse<List<User>> searchUsersByTags(@RequestParam(required = false) @Validated List<String> tagNameList) {
         if (CollectionUtils.isEmpty(tagNameList)) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR);
         }
         List<User> userList = userService.searchUsersByTags(tagNameList);
         return ResultUtils.success(userList);
+    }
+
+    @GetMapping("/recommend")
+    public BaseResponse<Page<User>> recommendUsers(long pageSize, long pageNum, HttpServletRequest request) {
+        QueryWrapper<User> queryWrapper =new QueryWrapper<>();
+        Page<User> userPage = userService.page(new Page<>(pageNum,pageSize),queryWrapper);
+        return ResultUtils.success(userPage);
     }
 
     @PostMapping("/update")
