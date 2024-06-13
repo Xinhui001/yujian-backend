@@ -9,6 +9,7 @@ import com.jxh.yujian.model.domain.User;
 import com.jxh.yujian.model.domain.UserTeam;
 import com.jxh.yujian.model.dto.TeamQuery;
 import com.jxh.yujian.model.enums.TeamStatusEnum;
+import com.jxh.yujian.model.request.TeamJoinRequest;
 import com.jxh.yujian.model.request.TeamUpdateRequest;
 import com.jxh.yujian.model.vo.TeamUserVO;
 import com.jxh.yujian.model.vo.UserVO;
@@ -254,6 +255,76 @@ public class TeamServiceImpl extends ServiceImpl<TeamMapper, Team>
         Team newTeam = new Team();
         BeanUtils.copyProperties(team, newTeam);
         return this.updateById(newTeam);
+    }
+
+    /**
+     * 加入队伍
+     *
+     * @param teamJoinRequest
+     * @param loginUser
+     * @return
+     */
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public boolean joinTeam(TeamJoinRequest teamJoinRequest, User loginUser) {
+        if (teamJoinRequest == null) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR);
+        }
+        Long teamId = teamJoinRequest.getTeamId();
+        if (teamId == null || teamId <= 0) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR);
+        }
+//        1. 队伍必须存在，只能加入未满、未过期的队伍
+        Team team = this.getById(teamId);
+        if (team == null) {
+            throw new BusinessException(ErrorCode.NULL_ERROR,"队伍不存在");
+        }
+        Date expireTime = team.getExpireTime();
+        if (expireTime != null && new Date().after(expireTime)) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR,"队伍已过期");
+        }
+//        2. 禁止加入私有的队伍 如果加入的队伍是加密的，必须密码匹配才可以
+        Integer status = team.getStatus();
+        TeamStatusEnum teamStatusEnum = TeamStatusEnum.getEnumByValue(status);
+        if (TeamStatusEnum.PRIVATE.equals(teamStatusEnum)) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR,"禁止加入私有队伍");
+        }
+        String password = teamJoinRequest.getPassword();
+        if (TeamStatusEnum.SECRET.equals(teamStatusEnum)) {
+            if (StringUtils.isBlank(password) || !password.equals(team.getPassword())) {
+                throw new BusinessException(ErrorCode.PARAMS_ERROR,"密码错误");
+            }
+        }
+//        3. 用户最多加入 5 个队伍
+        long userId = loginUser.getId();
+        QueryWrapper<UserTeam> queryWrapper = new QueryWrapper<>();
+        queryWrapper.eq("userId",userId);
+        long joinCount = userTeamService.count(queryWrapper);
+        if (joinCount >= 5) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR,"最多加入5个队伍");
+        }
+//        4. 不能加入自己的队伍，不能重复加入已加入的队伍（幂等性）
+        queryWrapper = new QueryWrapper<>();
+        queryWrapper.eq("userId",userId);
+        queryWrapper.eq("teamId",teamId);
+        long isJoin = userTeamService.count(queryWrapper);
+        if (isJoin > 0) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR,"该用户已加入该队伍");
+        }
+//        5. 队伍人数已满就不能加入了
+        queryWrapper = new QueryWrapper<>();
+        queryWrapper.eq("teamId",teamId);
+        long teamHasNum = userTeamService.count(queryWrapper);
+        if (teamHasNum >= team.getMaxNum()) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR,"队伍人数已满");
+        }
+//        6. 新增队伍 - 用户关联信息
+        //TODO 可能会重复加入队伍 多点连点    加锁
+        UserTeam userTeam = new UserTeam();
+        userTeam.setUserId(userId);
+        userTeam.setTeamId(teamId);
+        userTeam.setJoinTime(new Date());
+        return userTeamService.save(userTeam);
     }
 }
 

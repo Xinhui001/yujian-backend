@@ -10,6 +10,7 @@ import com.jxh.yujian.model.domain.Team;
 import com.jxh.yujian.model.domain.User;
 import com.jxh.yujian.model.dto.TeamQuery;
 import com.jxh.yujian.model.request.TeamAddRequest;
+import com.jxh.yujian.model.request.TeamJoinRequest;
 import com.jxh.yujian.model.request.TeamUpdateRequest;
 import com.jxh.yujian.model.vo.TeamUserVO;
 import com.jxh.yujian.service.TeamService;
@@ -114,5 +115,18 @@ public class TeamController {
         QueryWrapper<Team> queryWrapper = new QueryWrapper<>(team);
         Page<Team> resultPage = teamService.page(page, queryWrapper);
         return ResultUtils.success(resultPage);
+    }
+
+    @PostMapping("/join")
+    public BaseResponse<Boolean> joinTeam(@RequestBody TeamJoinRequest teamJoinRequest, HttpServletRequest request) {
+        if (teamJoinRequest == null) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR);
+        }
+        User loginUser = userService.getLoginUser(request);
+        boolean result = teamService.joinTeam(teamJoinRequest, loginUser);
+        if (!result) {
+            throw new BusinessException(ErrorCode.SYSTEM_ERROR,"加入失败");
+        }
+        return ResultUtils.success(result);
     }
 }
