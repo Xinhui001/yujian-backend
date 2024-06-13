@@ -9,6 +9,7 @@ import com.jxh.yujian.model.domain.User;
 import com.jxh.yujian.model.domain.UserTeam;
 import com.jxh.yujian.model.dto.TeamQuery;
 import com.jxh.yujian.model.enums.TeamStatusEnum;
+import com.jxh.yujian.model.request.TeamUpdateRequest;
 import com.jxh.yujian.model.vo.TeamUserVO;
 import com.jxh.yujian.model.vo.UserVO;
 import com.jxh.yujian.service.TeamService;
@@ -213,6 +214,46 @@ public class TeamServiceImpl extends ServiceImpl<TeamMapper, Team>
             teamUserVOList.add(teamUserVO);
         }
         return teamUserVOList;
+    }
+
+    /**
+     * 更新队伍
+     *
+     * @param team
+     * @param loginUser
+     * @return
+     */
+    @Override
+    public boolean updateTeam(TeamUpdateRequest team, User loginUser) {
+//        1. 判断请求参数是否为空
+        if (team == null) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR);
+        }
+        Long id = team.getId();
+        if (id == null || id <= 0) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR);
+        }
+//        2. 查询队伍是否存在
+        Team oldTeam = this.getById(id);
+        if (oldTeam == null) {
+            throw new BusinessException(ErrorCode.NULL_ERROR,"队伍不存在");
+        }
+//        3. 只有管理员或者队伍的创建者可以修改
+        if (oldTeam.getUserId() != loginUser.getId() && userService.isAdmin(loginUser)) {
+            throw new BusinessException(ErrorCode.NO_AUTH);
+        }
+//        4. TODO 如果用户传入的新值和老值一致，就不用 update 了 (降低数据库使用次数)
+//        5. 如果队伍状态改为加密，必须要有密码
+        TeamStatusEnum teamStatusEnum = TeamStatusEnum.getEnumByValue(team.getStatus());
+        if (TeamStatusEnum.SECRET.equals(teamStatusEnum)) {
+            if (StringUtils.isBlank(team.getPassword())) {
+                throw new BusinessException(ErrorCode.PARAMS_ERROR,"加密队伍需要密码");
+            }
+        }
+//        6. 更新成功
+        Team newTeam = new Team();
+        BeanUtils.copyProperties(team, newTeam);
+        return this.updateById(newTeam);
     }
 }
 

@@ -10,6 +10,7 @@ import com.jxh.yujian.model.domain.Team;
 import com.jxh.yujian.model.domain.User;
 import com.jxh.yujian.model.dto.TeamQuery;
 import com.jxh.yujian.model.request.TeamAddRequest;
+import com.jxh.yujian.model.request.TeamUpdateRequest;
 import com.jxh.yujian.model.vo.TeamUserVO;
 import com.jxh.yujian.service.TeamService;
 import com.jxh.yujian.service.UserService;
@@ -67,11 +68,12 @@ public class TeamController {
     }
 
     @PostMapping("/update")
-    public BaseResponse<Boolean> updateTeam(@RequestBody Team team) {
+    public BaseResponse<Boolean> updateTeam(@RequestBody TeamUpdateRequest team, HttpServletRequest request) {
         if (team == null) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR);
         }
-        boolean result = teamService.updateById(team);
+        User loginUser = userService.getLoginUser(request);
+        boolean result = teamService.updateTeam(team, loginUser);
         if (!result) {
             throw new BusinessException(ErrorCode.SYSTEM_ERROR, "更新失败");
         }
@@ -92,7 +94,7 @@ public class TeamController {
 
 
     @GetMapping("/list")
-    public BaseResponse<List<TeamUserVO>> listTeams(TeamQuery teamQuery, HttpServletRequest request) {
+    public BaseResponse<List<TeamUserVO>> listTeams(@RequestBody TeamQuery teamQuery, HttpServletRequest request) {
         if (teamQuery == null) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR);
         }

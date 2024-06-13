@@ -4,6 +4,7 @@ import com.jxh.yujian.model.domain.Team;
 import com.baomidou.mybatisplus.extension.service.IService;
 import com.jxh.yujian.model.domain.User;
 import com.jxh.yujian.model.dto.TeamQuery;
+import com.jxh.yujian.model.request.TeamUpdateRequest;
 import com.jxh.yujian.model.vo.TeamUserVO;
 
 import java.util.List;
@@ -32,4 +33,13 @@ public interface TeamService extends IService<Team> {
      * @return
      */
     List<TeamUserVO> listTeams(TeamQuery teamQuery, boolean isAdmin);
+
+    /**
+     * 更新队伍
+     *
+     * @param team
+     * @param loginUser
+     * @return
+     */
+    boolean updateTeam(TeamUpdateRequest team, User loginUser);
 }
