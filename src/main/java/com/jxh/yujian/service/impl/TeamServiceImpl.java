@@ -7,16 +7,24 @@ import com.jxh.yujian.exception.BusinessException;
 import com.jxh.yujian.model.domain.Team;
 import com.jxh.yujian.model.domain.User;
 import com.jxh.yujian.model.domain.UserTeam;
+import com.jxh.yujian.model.dto.TeamQuery;
 import com.jxh.yujian.model.enums.TeamStatusEnum;
+import com.jxh.yujian.model.vo.TeamUserVO;
+import com.jxh.yujian.model.vo.UserVO;
 import com.jxh.yujian.service.TeamService;
 import com.jxh.yujian.mapper.TeamMapper;
+import com.jxh.yujian.service.UserService;
 import com.jxh.yujian.service.UserTeamService;
 import jakarta.annotation.Resource;
 import org.apache.commons.lang3.StringUtils;
+import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.CollectionUtils;
 
+import java.util.ArrayList;
 import java.util.Date;
+import java.util.List;
 import java.util.Optional;
 
 /**
@@ -30,6 +38,9 @@ public class TeamServiceImpl extends ServiceImpl<TeamMapper, Team>
 
     @Resource
     private UserTeamService userTeamService;
+
+    @Resource
+    private UserService userService;
 
     /**
      * 添加队伍
@@ -53,9 +64,9 @@ public class TeamServiceImpl extends ServiceImpl<TeamMapper, Team>
         }
 //        3. 校验信息
         final long userId = loginUser.getId();
-//        a. 队伍人数 > 1 且 <= 10
+//        a. 队伍人数 > 2 且 <= 10
         Integer teamMaxNum = Optional.ofNullable(team.getMaxNum()).orElse(0);
-        if (teamMaxNum < 1 || teamMaxNum > 10) {
+        if (teamMaxNum < 3 || teamMaxNum > 10) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR,"队伍人数不符合要求");
         }
 //        b. 队伍标题 <= 20
@@ -69,6 +80,7 @@ public class TeamServiceImpl extends ServiceImpl<TeamMapper, Team>
             throw new BusinessException(ErrorCode.PARAMS_ERROR,"队伍描述不符合要求");
         }
 //        d. status 是否公开（int）不传默认为 0（公开）
+        //第一个是status是判断传参是否为null，第二个statusEnum是判断用户输入队伍的状态态属性status是否合法存在（0/1/2）
         Integer teamStatus = Optional.ofNullable(team.getStatus()).orElse(0);
         TeamStatusEnum teamStatusEnum = TeamStatusEnum.getEnumByValue(teamStatus);
         if (teamStatusEnum == null) {
@@ -112,6 +124,95 @@ public class TeamServiceImpl extends ServiceImpl<TeamMapper, Team>
             throw new BusinessException(ErrorCode.SYSTEM_ERROR,"创建队伍失败");
         }
         return teamId;
+    }
+
+    /**
+     * 搜索队伍
+     *
+     * @param teamQuery
+     * @param isAdmin
+     * @return
+     */
+    @Override
+    public List<TeamUserVO> listTeams(TeamQuery teamQuery, boolean isAdmin) {
+        QueryWrapper<Team> queryWrapper = new QueryWrapper<>();
+//        1. 从请求参数中取出队伍名称等查询条件，如果存在则作为查询条件
+        //id
+        if (teamQuery != null) {
+            Long id = teamQuery.getId();
+            if (id != null && id > 0) {
+                queryWrapper.eq("id",id);
+            }
+        }
+        //id列表
+        List<Long> idList = teamQuery.getIdList();
+        if (!CollectionUtils.isEmpty(idList)) {
+            queryWrapper.in("id",idList);
+        }
+        //searchText   可以通过某个关键词同时对名称和描述查询
+        String searchText = teamQuery.getSearchText();
+        if (StringUtils.isNotBlank(searchText)) {
+            queryWrapper.and(qw -> qw.like("name", searchText).or().like("description",searchText));
+        }
+        //name
+        String name = teamQuery.getName();
+        if (StringUtils.isNotBlank(name)) {
+            queryWrapper.like("name",name);
+        }
+        //description
+        String description = teamQuery.getDescription();
+        if (StringUtils.isNotBlank(description)) {
+            queryWrapper.like("description",description);
+        }
+        //maxNum   最大人数相等的  最大人数至少为3人
+        Integer maxNum = teamQuery.getMaxNum();
+        if (maxNum != null && maxNum > 2) {
+            queryWrapper.eq("maxNum",maxNum);
+        }
+        //userId  根据创建人查询
+        Long userId = teamQuery.getUserId();
+        if (userId != null && userId > 0) {
+            queryWrapper.eq("userId",userId);
+        }
+        //status
+        Integer status = teamQuery.getStatus();
+        TeamStatusEnum teamStatusEnum = TeamStatusEnum.getEnumByValue(status);
+        //如果status不为 0，1，2  则设置为公开队伍
+        if (teamStatusEnum == null) {
+            teamStatusEnum = TeamStatusEnum.PUBLIC;
+        }
+        //如果不是管理员 并且队伍私有  则无权限查询  只有管理员才能查看加密还有非公开的房间
+        if (!isAdmin && TeamStatusEnum.PRIVATE.equals(teamStatusEnum)) {
+            throw new BusinessException(ErrorCode.NO_AUTH);
+        }
+        queryWrapper.eq("status",teamStatusEnum.getValue());
+//        2. 不展示已过期的队伍（根据过期时间筛选）
+        // sql   expireTime is null or expireTime > now()
+        queryWrapper.and(qw -> qw.gt("expireTime", new Date()).or().isNull("expireTime"));
+        List<Team> teamList = this.list(queryWrapper);
+        if (CollectionUtils.isEmpty(teamList)) {
+            return new ArrayList<>();
+        }
+//        5. 关联查询已加入队伍的用户信息
+        List<TeamUserVO> teamUserVOList = new ArrayList<>();
+        for (Team team : teamList) {
+            Long id = team.getUserId();
+            //id为空 则跳出当前循环剩余部分 进行下一次循环迭代
+            if (id == null) {
+                continue;
+            }
+            TeamUserVO teamUserVO = new TeamUserVO();
+            BeanUtils.copyProperties(team, teamUserVO);
+            //给user脱敏
+            User user = userService.getById(id);
+            if (user != null) {
+                UserVO userVO = new UserVO();
+                BeanUtils.copyProperties(user, userVO);
+                teamUserVO.setCreateUser(userVO);
+            }
+            teamUserVOList.add(teamUserVO);
+        }
+        return teamUserVOList;
     }
 }
 

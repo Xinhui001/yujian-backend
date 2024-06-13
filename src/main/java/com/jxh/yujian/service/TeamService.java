@@ -3,6 +3,10 @@ package com.jxh.yujian.service;
 import com.jxh.yujian.model.domain.Team;
 import com.baomidou.mybatisplus.extension.service.IService;
 import com.jxh.yujian.model.domain.User;
+import com.jxh.yujian.model.dto.TeamQuery;
+import com.jxh.yujian.model.vo.TeamUserVO;
+
+import java.util.List;
 
 /**
 * @author 20891
@@ -19,4 +23,13 @@ public interface TeamService extends IService<Team> {
      * @return
      */
     long save(Team team, User loginUser);
+
+    /**
+     * 搜索队伍
+     *
+     * @param teamQuery
+     * @param isAdmin
+     * @return
+     */
+    List<TeamUserVO> listTeams(TeamQuery teamQuery, boolean isAdmin);
 }

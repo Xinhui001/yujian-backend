@@ -10,6 +10,7 @@ import com.jxh.yujian.model.domain.Team;
 import com.jxh.yujian.model.domain.User;
 import com.jxh.yujian.model.dto.TeamQuery;
 import com.jxh.yujian.model.request.TeamAddRequest;
+import com.jxh.yujian.model.vo.TeamUserVO;
 import com.jxh.yujian.service.TeamService;
 import com.jxh.yujian.service.UserService;
 import jakarta.annotation.Resource;
@@ -91,14 +92,12 @@ public class TeamController {
 
 
     @GetMapping("/list")
-    public BaseResponse<List<Team>> listTeams(@RequestBody TeamQuery teamQuery) {
+    public BaseResponse<List<TeamUserVO>> listTeams(TeamQuery teamQuery, HttpServletRequest request) {
         if (teamQuery == null) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR);
         }
-        Team team = new Team();
-        BeanUtils.copyProperties(team, teamQuery);
-        QueryWrapper<Team> queryWrapper = new QueryWrapper<>(team);
-        List<Team> teamList = teamService.list(queryWrapper);
+        boolean isAdmin = userService.isAdmin(request);
+        List<TeamUserVO> teamList = teamService.listTeams(teamQuery, isAdmin);
         return ResultUtils.success(teamList);
     }
 
