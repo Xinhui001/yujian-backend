@@ -11,6 +11,7 @@ import com.jxh.yujian.model.domain.User;
 import com.jxh.yujian.model.dto.TeamQuery;
 import com.jxh.yujian.model.request.TeamAddRequest;
 import com.jxh.yujian.model.request.TeamJoinRequest;
+import com.jxh.yujian.model.request.TeamQuitRequest;
 import com.jxh.yujian.model.request.TeamUpdateRequest;
 import com.jxh.yujian.model.vo.TeamUserVO;
 import com.jxh.yujian.service.TeamService;
@@ -127,6 +128,16 @@ public class TeamController {
         if (!result) {
             throw new BusinessException(ErrorCode.SYSTEM_ERROR,"加入失败");
         }
+        return ResultUtils.success(result);
+    }
+
+    @PostMapping("/quit")
+    public BaseResponse<Boolean> quitTeam(@RequestBody TeamQuitRequest teamQuitRequest, HttpServletRequest request) {
+        if (teamQuitRequest == null) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR);
+        }
+        User loginUser = userService.getLoginUser(request);
+        boolean result = teamService.quitTeam(teamQuitRequest, loginUser);
         return ResultUtils.success(result);
     }
 }
