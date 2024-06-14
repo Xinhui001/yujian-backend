@@ -23,7 +23,7 @@ public class TeamQuery extends PageRequest implements Serializable {
     private Long id;
 
     /**
-     * id 列表
+     * 队伍id 列表
      */
     private List<Long> idList;
 
