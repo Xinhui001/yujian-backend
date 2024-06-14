@@ -4,6 +4,7 @@ import com.jxh.yujian.common.PageRequest;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 
+import java.io.Serializable;
 import java.util.List;
 
 /**
@@ -13,7 +14,9 @@ import java.util.List;
  */
 @EqualsAndHashCode(callSuper = true)
 @Data
-public class TeamQuery extends PageRequest {
+public class TeamQuery extends PageRequest implements Serializable {
+
+    private static final long serialVersionUID = 198947739029868775L;
     /**
      * id
      */
