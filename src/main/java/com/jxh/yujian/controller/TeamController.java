@@ -3,6 +3,7 @@ package com.jxh.yujian.controller;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.jxh.yujian.common.BaseResponse;
+import com.jxh.yujian.common.DeleteRequest;
 import com.jxh.yujian.common.ErrorCode;
 import com.jxh.yujian.common.ResultUtils;
 import com.jxh.yujian.exception.BusinessException;
@@ -66,10 +67,11 @@ public class TeamController {
     }
 
     @PostMapping("/delete")
-    public BaseResponse<Boolean> deleteTeam(@RequestParam long id, HttpServletRequest request) {
-        if (id <= 0) {
+    public BaseResponse<Boolean> deleteTeam(@RequestBody DeleteRequest deleteRequest, HttpServletRequest request) {
+        if (deleteRequest == null || deleteRequest.getId() <= 0) {
             throw new BusinessException(ErrorCode.NULL_ERROR);
         }
+        long id = deleteRequest.getId();
         User loginUser = userService.getLoginUser(request);
         boolean result = teamService.deleteTeam(id, loginUser);
         if (!result) {
