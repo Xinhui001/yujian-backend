@@ -146,49 +146,50 @@ public class TeamServiceImpl extends ServiceImpl<TeamMapper, Team>
             if (id != null && id > 0) {
                 queryWrapper.eq("id",id);
             }
+            //id列表
+            List<Long> idList = teamQuery.getIdList();
+            if (!CollectionUtils.isEmpty(idList)) {
+                queryWrapper.in("id",idList);
+            }
+            //searchText   可以通过某个关键词同时对名称和描述查询
+            String searchText = teamQuery.getSearchText();
+            if (StringUtils.isNotBlank(searchText)) {
+                queryWrapper.and(qw -> qw.like("name", searchText).or().like("description",searchText));
+            }
+            //name
+            String name = teamQuery.getName();
+            if (StringUtils.isNotBlank(name)) {
+                queryWrapper.like("name",name);
+            }
+            //description
+            String description = teamQuery.getDescription();
+            if (StringUtils.isNotBlank(description)) {
+                queryWrapper.like("description",description);
+            }
+            //maxNum   最大人数相等的  最大人数至少为3人
+            Integer maxNum = teamQuery.getMaxNum();
+            if (maxNum != null && maxNum > 2) {
+                queryWrapper.eq("maxNum",maxNum);
+            }
+            //userId  根据创建人查询
+            Long userId = teamQuery.getUserId();
+            if (userId != null && userId > 0) {
+                queryWrapper.eq("userId",userId);
+            }
+            //status
+            Integer status = teamQuery.getStatus();
+            TeamStatusEnum teamStatusEnum = TeamStatusEnum.getEnumByValue(status);
+            //如果status不为 0，1，2  则设置为公开队伍
+            if (teamStatusEnum == null) {
+                teamStatusEnum = TeamStatusEnum.PUBLIC;
+            }
+            //如果不是管理员 并且队伍私有  则无权限查询  只有管理员才能查看加密还有非公开的房间
+            if (!isAdmin && TeamStatusEnum.PRIVATE.equals(teamStatusEnum)) {
+                throw new BusinessException(ErrorCode.NO_AUTH);
+            }
+            queryWrapper.eq("status",teamStatusEnum.getValue());
         }
-        //id列表
-        List<Long> idList = teamQuery.getIdList();
-        if (!CollectionUtils.isEmpty(idList)) {
-            queryWrapper.in("id",idList);
-        }
-        //searchText   可以通过某个关键词同时对名称和描述查询
-        String searchText = teamQuery.getSearchText();
-        if (StringUtils.isNotBlank(searchText)) {
-            queryWrapper.and(qw -> qw.like("name", searchText).or().like("description",searchText));
-        }
-        //name
-        String name = teamQuery.getName();
-        if (StringUtils.isNotBlank(name)) {
-            queryWrapper.like("name",name);
-        }
-        //description
-        String description = teamQuery.getDescription();
-        if (StringUtils.isNotBlank(description)) {
-            queryWrapper.like("description",description);
-        }
-        //maxNum   最大人数相等的  最大人数至少为3人
-        Integer maxNum = teamQuery.getMaxNum();
-        if (maxNum != null && maxNum > 2) {
-            queryWrapper.eq("maxNum",maxNum);
-        }
-        //userId  根据创建人查询
-        Long userId = teamQuery.getUserId();
-        if (userId != null && userId > 0) {
-            queryWrapper.eq("userId",userId);
-        }
-        //status
-        Integer status = teamQuery.getStatus();
-        TeamStatusEnum teamStatusEnum = TeamStatusEnum.getEnumByValue(status);
-        //如果status不为 0，1，2  则设置为公开队伍
-        if (teamStatusEnum == null) {
-            teamStatusEnum = TeamStatusEnum.PUBLIC;
-        }
-        //如果不是管理员 并且队伍私有  则无权限查询  只有管理员才能查看加密还有非公开的房间
-        if (!isAdmin && TeamStatusEnum.PRIVATE.equals(teamStatusEnum)) {
-            throw new BusinessException(ErrorCode.NO_AUTH);
-        }
-        queryWrapper.eq("status",teamStatusEnum.getValue());
+
 //        2. 不展示已过期的队伍（根据过期时间筛选）
         // sql   expireTime is null or expireTime > now()
         queryWrapper.and(qw -> qw.gt("expireTime", new Date()).or().isNull("expireTime"));

@@ -29,6 +29,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
@@ -113,6 +114,29 @@ public class TeamController {
         }
         boolean isAdmin = userService.isAdmin(request);
         List<TeamUserVO> teamList = teamService.listTeams(teamQuery, isAdmin);
+        final List<Long> teamIdList = teamList.stream().map(TeamUserVO::getId).collect(Collectors.toList());
+        //查询当前用户是否加入该队伍
+        QueryWrapper<UserTeam> userTeamQueryWrapper = new QueryWrapper<>();
+        try {
+            User loginUser = userService.getLoginUser(request);
+            userTeamQueryWrapper.eq("userId",loginUser.getId());
+            userTeamQueryWrapper.in("teamId",teamIdList);
+            List<UserTeam> userTeamList = userTeamService.list(userTeamQueryWrapper);
+            //用户已加入的队伍的队伍id
+            Set<Long> hasJoin = userTeamList.stream().map(UserTeam::getTeamId).collect(Collectors.toSet());
+            teamList.forEach(team -> {
+                boolean contains = hasJoin.contains(team.getId());
+                team.setHasJoin(contains);
+            });
+        }catch (Exception ignored){}
+        //加入队伍的人数
+        QueryWrapper<UserTeam> userTeamQueryWrapper1 = new QueryWrapper<>();
+        userTeamQueryWrapper1.in("teamId",teamIdList);
+        List<UserTeam> userTeams = userTeamService.list(userTeamQueryWrapper1);
+        Map<Long, List<UserTeam>> collect = userTeams.stream().collect(Collectors.groupingBy(UserTeam::getTeamId));
+        teamList.forEach(team -> {
+            team.setHasJoinNum(collect.getOrDefault(team.getId(),new ArrayList<>()).size());
+        });
         return ResultUtils.success(teamList);
     }
 
